@@ -18,8 +18,9 @@ export const fetchAllLists = createAsyncThunk(
 
 export const addList = createAsyncThunk(
   "list/addList",
-  async ({ BoardID, name }) => {
-    const newList = await createNewList(BoardID, name);
+  async ({ id, name }) => {
+    console.log(id, name);
+    const newList = await createNewList(id, name);
     return newList;
     //listsUpdate((prevLists) => [...prevLists, newList]);
     //   let newBoard = await createNewBoard(boardName);

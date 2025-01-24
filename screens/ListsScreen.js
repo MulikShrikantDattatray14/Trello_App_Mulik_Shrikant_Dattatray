@@ -1,46 +1,52 @@
-import React, { useEffect, useState, useRef } from "react";
-import {
-  Modal,
-  View,
-  TouchableWithoutFeedback,
-  Keyboard,
-  TextInput,
-  Platform,
-  KeyboardAvoidingView,
-  RefreshControl,
-} from "react-native";
-import Toast from "react-native-toast-message";
-import { useDispatch, useSelector } from "react-redux";
-import { fetchData, addData, deleteData } from "@/redux/slice/BoardSlice";
+import React, { useEffect, useRef, useState } from "react";
 import { Box } from "@/components/ui/box";
-import { Text } from "@/components/ui/text";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  TouchableWithoutFeedback,
+  View,
+  TextInput,
+} from "react-native";
+import { addList } from "@/redux/slice/ListSlice";
+import CardContent from "./components/CardContent";
+
+import { useDispatch, useSelector } from "react-redux";
 import { VStack } from "@/components/ui/vstack";
-import { FlatList } from "react-native";
-import { Fab, FabLabel, FabIcon } from "@/components/ui/fab";
-import { AddIcon, TrashIcon } from "@/components/ui/icon";
 import { HStack } from "@/components/ui/hstack";
 import { Button } from "@/components/ui/button";
-import { Pressable } from "react-native";
+import {
+  FlatList,
+  RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+import { fetchAllLists, deleteList } from "@/redux/slice/ListSlice";
+import { Pressable, Modal } from "react-native";
+import { Keyboard } from "react-native";
 import { Icon } from "@/components/ui/icon";
-import { useNavigation } from "@react-navigation/native";
+import { Text } from "@/components/ui/text";
+import { AddIcon, TrashIcon } from "@/components/ui/icon";
+import Toast from "react-native-toast-message";
+import { Fab, FabLabel, FabIcon } from "@/components/ui/fab";
 
-export default function BoardsScreen() {
-  const navigation = useNavigation();
+const ListsScreen = ({ route, navigation }) => {
   const dispatch = useDispatch();
-  const { boards } = useSelector((state) => state.boards);
-
+  const { BoardId } = route.params;
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const { lists } = useSelector((state) => state.lists);
+  const flatListRef = useRef(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
-
   const [inputValue, setInputValue] = useState("");
-
-  let RemainingBoards = 10 - boards.length;
-
   useEffect(() => {
-    dispatch(fetchData());
+    dispatch(fetchAllLists(BoardId));
   }, []);
 
+  const onRefresh = () => {
+    setIsRefreshing(true);
+    dispatch(fetchAllLists(BoardId));
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 1000);
+  };
   const openModal = () => {
     setIsModalVisible(true);
   };
@@ -49,9 +55,27 @@ export default function BoardsScreen() {
     setIsModalVisible(false);
     setInputValue("");
   };
+  const handleDeletePress = (id) => {
+    dispatch(deleteList(id));
+    Toast.show({
+      type: "success",
+      text1: "Hello! 👋",
+      text2: "List Deleted Successfully 🎉",
+      position: "top",
+    });
+
+    if (flatListRef.current && lists.length > 1) {
+      setTimeout(() => {
+        flatListRef.current.scrollToIndex({ index: 0, animated: true });
+      }, 300);
+    }
+  };
 
   const handleOk = () => {
-    dispatch(addData(inputValue));
+    //  //addList({ BoardID, name: e.target.listName.value })
+    //console.log("name " + inputValue);
+    //console.log("fromlist", { BoardId, inputValue });
+    dispatch(addList({ id: BoardId, name: inputValue }));
     closeModal();
     Toast.show({
       type: "success",
@@ -66,48 +90,6 @@ export default function BoardsScreen() {
     closeModal();
   };
 
-  const handleIconPress = (id) => {
-    dispatch(deleteData(id));
-    Toast.show({
-      type: "success",
-      text1: "Hello! 👋",
-      text2: "Board Deleted Successfully 🎉",
-      position: "top",
-    });
-  };
-
-  const onRefresh = () => {
-    setIsRefreshing(true);
-    dispatch(fetchData());
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1000);
-  };
-
-  const renderItem = ({ item }) => {
-    const randomColor = getRandomDarkColor();
-
-    return (
-      <Pressable
-        onPress={() => navigation.navigate("Lists", { BoardId: item.id })}
-      >
-        <Box
-          className="p-4 m-2 rounded-lg shadow-2xl h-32"
-          style={{ backgroundColor: randomColor }}
-        >
-          <Box className="flex-row justify-between items-center">
-            <Text className="text-white text-2xl font-bold">
-              {item.name.toUpperCase()}
-            </Text>
-            <Pressable onPress={() => handleIconPress(item.id)}>
-              <Icon as={TrashIcon} size="xl" className="text-white w-10 h-10" />
-            </Pressable>
-          </Box>
-        </Box>
-      </Pressable>
-    );
-  };
-
   function getRandomDarkColor() {
     const getDarkComponent = () => Math.floor(Math.random() * 128);
     const r = getDarkComponent();
@@ -116,14 +98,40 @@ export default function BoardsScreen() {
     return `rgb(${r}, ${g}, ${b})`;
   }
 
+  const renderItem = ({ item }) => {
+    const randomColor = getRandomDarkColor();
+
+    return (
+      <Box
+        className="p-4 m-2 rounded-lg shadow-2xl w-[35vh] h-32"
+        style={{ backgroundColor: randomColor }}
+      >
+        <Box className="flex-row justify-between items-center">
+          <Text className="text-white text-lg font-bold">{item.name}</Text>
+          <Pressable onPress={() => handleDeletePress(item.id)}>
+            <Icon as={TrashIcon} size="lg" className="text-white w-8 h-8" />
+          </Pressable>
+        </Box>
+        <CardContent
+          listid={item.id} // Pass item.id as listid
+          listName={item.name} // Pass item.id as listid
+        />
+      </Box>
+
+      // </Pressable>
+    );
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, margin: 0 }}>
-      <VStack className="flex-1 p-1 bg-white">
+      <HStack className="flex-1 p-4">
         <FlatList
-          data={boards}
+          ref={flatListRef}
+          data={lists}
           renderItem={renderItem}
           keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={{ paddingVertical: 0 }}
+          horizontal
+          showsHorizontalScrollIndicator={true}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
@@ -132,26 +140,23 @@ export default function BoardsScreen() {
             />
           }
         />
-      </VStack>
+      </HStack>
       <Box className="flex  bg-white">
         <Fab
           size="lg"
           placement="bottom right"
           isHovered={true}
-          isDisabled={RemainingBoards === 0}
+          isDisabled={false}
           isPressed={true}
           className="flex flex-col justify-center items-center w-[200px]"
           onPress={openModal}
         >
           <HStack className="items-center space-x-1">
             <FabLabel>
-              <Text className="text-white text-lg font-bold">Add Boards</Text>
+              <Text className="text-white text-lg font-bold">Add Lists</Text>
             </FabLabel>
             <FabIcon as={AddIcon} />
           </HStack>
-          <Box className="flex justify-center items-center">
-            <Text className="text-white text-sm">{RemainingBoards} left</Text>
-          </Box>
         </Fab>
       </Box>
 
@@ -172,7 +177,7 @@ export default function BoardsScreen() {
                 onStartShouldSetResponder={() => true}
               >
                 <Text className="text-lg font-bold mb-4 text-primary-700">
-                  Enter Board Name
+                  Enter List Name
                 </Text>
                 <VStack className="space-y-4">
                   <TextInput
@@ -184,7 +189,7 @@ export default function BoardsScreen() {
                       marginBottom: 20,
                       color: "black",
                     }}
-                    placeholder="Enter the board name"
+                    placeholder="Enter the List name"
                     placeholderTextColor="gray"
                     value={inputValue}
                     onChangeText={setInputValue}
@@ -212,4 +217,6 @@ export default function BoardsScreen() {
       <Toast />
     </SafeAreaView>
   );
-}
+};
+
+export default ListsScreen;
